@@ -1,11 +1,15 @@
 {
-  "name": "google-business-review-mcp-server",
-  "version": "1.0.0",
-  "description": "MCP server for managing Google Business Profile reviews with AI-powered responses",
+  "name": "gbp-mcp-server",
+  "version": "0.2.0",
+  "description": "Google Business Profile MCP server — full surface (reviews, posts, Q&A, media, insights, attributes). Forked from satheeshds/gbp-review-agent.",
   "type": "module",
   "main": "build/index.js",
   "bin": {
-    "google-business-review-mcp-server": "./build/index.js"
+    "gbp-mcp-server": "./build/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jmdurant/gbp-mcp-server.git"
   },
   "scripts": {
     "build": "tsc",
@@ -28,11 +32,17 @@
     "mcp",
     "model-context-protocol",
     "google-business",
+    "google-business-profile",
+    "gbp",
+    "local-seo",
     "reviews",
+    "posts",
+    "qanda",
+    "insights",
     "ai",
     "llm"
   ],
-  "author": "Your Name",
+  "author": "Dr. James DuRant",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.23.0",

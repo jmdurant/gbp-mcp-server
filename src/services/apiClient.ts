@@ -11,83 +11,78 @@ import { buildApiUrl } from '../utils/pathHelpers.js';
 export class GoogleMyBusinessApiClient {
     constructor(private authService: GoogleAuthService) {}
     
-    /**
-     * Makes an authenticated GET request to the API
-     */
-    async get<T = any>(path: string, params?: Record<string, any>): Promise<T> {
+    private async accessToken(): Promise<string> {
         await this.authService.refreshTokenIfNeeded();
-        
         const auth = this.authService.getAuthenticatedClient();
-        const accessToken = (await auth.getAccessToken()).token;
-        
-        const url = buildApiUrl(GOOGLE_API.BASE_URL, path, params);
-        
+        return (await auth.getAccessToken()).token!;
+    }
+
+    /**
+     * Makes an authenticated GET request to the API. Pass `baseUrl` to hit a
+     * non-default host (e.g. GOOGLE_API.HOSTS.PERFORMANCE for daily metrics).
+     */
+    async get<T = any>(path: string, params?: Record<string, any>, baseUrl?: string): Promise<T> {
+        const token = await this.accessToken();
+        const url = buildApiUrl(baseUrl ?? GOOGLE_API.BASE_URL, path, params);
         logger.debug(`API GET Request`, { url });
-        
         const fetch = (await import('node-fetch')).default;
-        
         const response = await fetch(url, {
             method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
         });
-        
         return this.handleResponse<T>(response);
     }
-    
-    /**
-     * Makes an authenticated PUT request to the API
-     */
-    async put<T = any>(path: string, body: any): Promise<T> {
-        await this.authService.refreshTokenIfNeeded();
-        
-        const auth = this.authService.getAuthenticatedClient();
-        const accessToken = (await auth.getAccessToken()).token;
-        
-        const url = `${GOOGLE_API.BASE_URL}/${path}`;
-        
+
+    async put<T = any>(path: string, body: any, baseUrl?: string): Promise<T> {
+        const token = await this.accessToken();
+        const url = `${baseUrl ?? GOOGLE_API.BASE_URL}/${path}`;
         logger.debug(`API PUT Request`, { url, body });
-        
         const fetch = (await import('node-fetch')).default;
-        
         const response = await fetch(url, {
             method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        
         return this.handleResponse<T>(response);
     }
-    
-    /**
-     * Makes an authenticated POST request to the API
-     */
-    async post<T = any>(path: string, body: any): Promise<T> {
-        await this.authService.refreshTokenIfNeeded();
-        
-        const auth = this.authService.getAuthenticatedClient();
-        const accessToken = (await auth.getAccessToken()).token;
-        
-        const url = `${GOOGLE_API.BASE_URL}/${path}`;
-        
+
+    async post<T = any>(path: string, body: any, baseUrl?: string): Promise<T> {
+        const token = await this.accessToken();
+        const url = `${baseUrl ?? GOOGLE_API.BASE_URL}/${path}`;
         logger.debug(`API POST Request`, { url, body });
-        
         const fetch = (await import('node-fetch')).default;
-        
         const response = await fetch(url, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        
+        return this.handleResponse<T>(response);
+    }
+
+    async patch<T = any>(path: string, body: any, params?: Record<string, any>, baseUrl?: string): Promise<T> {
+        const token = await this.accessToken();
+        const url = buildApiUrl(baseUrl ?? GOOGLE_API.BASE_URL, path, params);
+        logger.debug(`API PATCH Request`, { url, body });
+        const fetch = (await import('node-fetch')).default;
+        const response = await fetch(url, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        return this.handleResponse<T>(response);
+    }
+
+    async delete<T = any>(path: string, baseUrl?: string): Promise<T> {
+        const token = await this.accessToken();
+        const url = `${baseUrl ?? GOOGLE_API.BASE_URL}/${path}`;
+        logger.debug(`API DELETE Request`, { url });
+        const fetch = (await import('node-fetch')).default;
+        const response = await fetch(url, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        });
+        // DELETE often returns empty body; tolerate that
+        if (response.status === 204) return {} as T;
         return this.handleResponse<T>(response);
     }
     

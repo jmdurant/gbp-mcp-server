@@ -3,8 +3,22 @@
  */
 
 // API Configuration
+//
+// GBP is fragmented across several sub-APIs. Reviews + Posts + Media still
+// live on the legacy v4 surface; Q&A, Performance/Insights, and Business
+// Information moved to dedicated hosts. Routes pass the right host as the
+// optional `baseUrl` arg to apiClient methods.
 export const GOOGLE_API = {
     BASE_URL: 'https://mybusiness.googleapis.com/v4',
+    HOSTS: {
+        LEGACY_V4: 'https://mybusiness.googleapis.com/v4',                       // reviews, posts, media
+        ACCOUNT_MGMT: 'https://mybusinessaccountmanagement.googleapis.com/v1',   // accounts list
+        BUSINESS_INFO: 'https://mybusinessbusinessinformation.googleapis.com/v1',// locations, attributes, categories, services
+        QANDA: 'https://mybusinessqanda.googleapis.com/v1',                      // questions + answers
+        PERFORMANCE: 'https://businessprofileperformance.googleapis.com/v1',     // daily metrics + search keywords
+        VERIFICATIONS: 'https://mybusinessverifications.googleapis.com/v1',      // verification attempts
+        LODGING: 'https://mybusinesslodging.googleapis.com/v1'                   // food menus (food/dining only)
+    },
     SCOPES: [
         'https://www.googleapis.com/auth/business.manage',
         'https://www.googleapis.com/auth/userinfo.email',

@@ -1,15 +1,21 @@
-# Google Business Profile Review MCP Server
+# GBP MCP Server (Google Business Profile)
 
-A Model Context Protocol (MCP) server that enables AI assistants to manage Google Business Profile reviews through intelligent automation.
+A Model Context Protocol (MCP) server covering the full Google Business Profile surface: reviews, posts, Q&A, media, insights, and attributes.
+
+> Forked from [satheeshds/gbp-review-agent](https://github.com/satheeshds/gbp-review-agent) (reviews only) and extended. See [CHANGES.md](CHANGES.md) for the diff.
 
 ## Features
 
-- **Review Management**: Fetch and analyze Google Business Profile reviews
-- **AI-Powered Responses**: Generate contextually appropriate replies using LLM sampling
-- **Automated Posting**: Post replies back to Google Business Profile
-- **OAuth Integration**: Secure authentication with Google APIs
-- **Rate Limiting**: Respectful API usage with built-in rate limiting
-- **Structured Logging**: Comprehensive logging for debugging and monitoring
+- **Reviews** ✅ — fetch, analyze sentiment, AI-draft replies via MCP sampling, post replies (from upstream)
+- **Local Posts** 🟡 stubbed — STANDARD / EVENT / OFFER / ALERT lifecycle (list, create, update, delete)
+- **Q&A** 🟡 stubbed — list questions, owner-upsert answers, delete
+- **Media** 🟡 stubbed — photos/videos list, create from URL, streamed upload, delete
+- **Insights** 🟡 stubbed — daily metrics, multi-metric batches, monthly search keywords
+- **Business Info** 🟡 stubbed — location read/update, attributes, categories, services, verifications
+- **OAuth Integration** ✅ — secure auth with Google APIs across all 7 GBP sub-API hosts
+- **Mock Mode** ✅ — every service has a mock fallback so the tool surface is testable today, before GBP API approval lands
+
+🟡 = service implementation complete, MCP tool registration pending. Wire when [GBP API access](https://developers.google.com/my-business/content/prereqs) is approved (60+ day waitlist).
 
 ## Prerequisites
 
