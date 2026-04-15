@@ -6,16 +6,18 @@ A Model Context Protocol (MCP) server covering the full Google Business Profile 
 
 ## Features
 
-- **Reviews** ✅ — fetch, analyze sentiment, AI-draft replies via MCP sampling, post replies (from upstream)
-- **Local Posts** 🟡 stubbed — STANDARD / EVENT / OFFER / ALERT lifecycle (list, create, update, delete)
-- **Q&A** 🟡 stubbed — list questions, owner-upsert answers, delete
-- **Media** 🟡 stubbed — photos/videos list, create from URL, streamed upload, delete
-- **Insights** 🟡 stubbed — daily metrics, multi-metric batches, monthly search keywords
-- **Business Info** 🟡 stubbed — location read/update, attributes, categories, services, verifications
-- **OAuth Integration** ✅ — secure auth with Google APIs across all 7 GBP sub-API hosts
-- **Mock Mode** ✅ — every service has a mock fallback so the tool surface is testable today, before GBP API approval lands
+**28 MCP tools across 6 surfaces.** Mock mode lets you develop against the full tool surface today; live mode requires [GBP API access approval](https://developers.google.com/my-business/content/prereqs) (60+ day waitlist).
 
-🟡 = service implementation complete, MCP tool registration pending. Wire when [GBP API access](https://developers.google.com/my-business/content/prereqs) is approved (60+ day waitlist).
+- **Reviews** (5 tools) — `list_locations`, `get_unreplied_reviews`, `generate_reply` (AI via MCP sampling), `post_reply`, `delete_review_reply`, `get_review_day_stats`
+- **Local Posts** (4 tools) — `get_local_posts`, `create_local_post`, `update_local_post`, `delete_local_post` (STANDARD / EVENT / OFFER / ALERT)
+- **Q&A** (4 tools) — `get_questions`, `upsert_answer`, `delete_answer`, `delete_question` *(beyond InsightfulPipe parity)*
+- **Media** (4 tools) — `get_media`, `create_media`, `start_media_upload`, `delete_media`
+- **Insights** (3 tools) — `get_daily_metrics`, `get_multi_daily_metrics`, `get_search_keywords` (Business Profile Performance API)
+- **Business Info** (7 tools) — `get_location_details`, `get_location_attributes`, `get_available_attributes`, `get_services`, `get_categories`, `get_batch_categories`, `get_verifications`
+- **OAuth Integration** ✅ — auth across all 7 GBP sub-API hosts (legacy v4, BUSINESS_INFO, QANDA, PERFORMANCE, VERIFICATIONS, ACCOUNT_MGMT, LODGING)
+- **Mock Mode** ✅ — every tool has a mock-mode fallback returning realistic placeholder data
+
+Compared to [InsightfulPipe's hosted MCP](https://insightfulpipe.com/mcp-servers/google-my-business) (24 actions): full parity on reviews/posts/media/insights/business info, plus 4 Q&A tools they don't expose. Skipped: food menus (lodging-specific). Self-hosted, no SaaS, you own your OAuth tokens.
 
 ## Prerequisites
 

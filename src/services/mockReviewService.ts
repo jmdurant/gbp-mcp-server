@@ -295,6 +295,18 @@ export class MockReviewService implements IReviewService {
     }
 
     /**
+     * Delete owner reply on a review (mock implementation)
+     */
+    async deleteReply(_locationName: string, reviewId: string): Promise<ServiceResponse<{ success: boolean }>> {
+        if (!this.checkAuth()) {
+            return { success: false, error: 'Authentication required', errorCode: 'MOCK_AUTH_REQUIRED' };
+        }
+        await new Promise(resolve => setTimeout(resolve, 200));
+        logger.info(`mock deleteReply on review ${reviewId}`);
+        return { success: true, data: { success: true } };
+    }
+
+    /**
      * Get business profile (mock implementation)
      */
     async getBusinessProfile(locationName?: string): Promise<ServiceResponse<BusinessProfile>> {

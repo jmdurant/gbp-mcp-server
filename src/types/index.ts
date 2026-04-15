@@ -222,6 +222,7 @@ export interface IReviewService {
     listLocations(): Promise<ServiceResponse<ListLocationsResponse>>;
     getReviews(locationName: string, pageSize?: number, pageToken?: string): Promise<ServiceResponse<GetReviewsResponse>>;
     postReply(locationName: string, reviewId: string, replyText: string): Promise<ServiceResponse<PostReplyResponse>>;
+    deleteReply(locationName: string, reviewId: string): Promise<ServiceResponse<{ success: boolean }>>;
     getBusinessProfile(locationName?: string): Promise<ServiceResponse<BusinessProfile>>;
     getUnrepliedReviews(locationName: string, pageSize?: number, pageToken?: string): Promise<ServiceResponse<GoogleReview[]>>;
     getReviewStats(locationName: string): Promise<ServiceResponse<GoogleReviewDayStat[]>>;

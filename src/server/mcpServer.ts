@@ -12,6 +12,12 @@ import { GoogleAuthService } from '../services/googleAuth.js';
 import { ReviewService } from '../services/reviewService.js';
 import { MockReviewService } from '../services/mockReviewService.js';
 import { LLMService } from '../services/llmService.js';
+import { GoogleMyBusinessApiClient } from '../services/apiClient.js';
+import { PostService } from '../services/postService.js';
+import { QAService } from '../services/qaService.js';
+import { MediaService } from '../services/mediaService.js';
+import { InsightsService } from '../services/insightsService.js';
+import { BusinessInfoService } from '../services/businessInfoService.js';
 import type { IReviewService } from '../types/index.js';
 
 // Import tool implementations
@@ -19,7 +25,27 @@ import { createListLocationsTool } from './tools/listLocations.js';
 import { createGetUnRepliedReviewsTool } from './tools/getReviews.js';
 import { createGenerateReplyTool } from './tools/generateReply.js';
 import { createPostReplyTool } from './tools/postReply.js';
+import { createDeleteReviewReplyTool } from './tools/deleteReviewReply.js';
 import { createGetReviewDayStatsTool } from './tools/getReviewDayStats.js';
+import {
+    createGetLocalPostsTool, createCreateLocalPostTool,
+    createUpdateLocalPostTool, createDeleteLocalPostTool
+} from './tools/postsTools.js';
+import {
+    createGetMediaTool, createCreateMediaTool,
+    createStartMediaUploadTool, createDeleteMediaTool
+} from './tools/mediaTools.js';
+import {
+    createGetDailyMetricsTool, createGetMultiDailyMetricsTool, createGetSearchKeywordsTool
+} from './tools/insightsTools.js';
+import {
+    createGetLocationDetailsTool, createGetLocationAttributesTool, createGetAvailableAttributesTool,
+    createGetServicesTool, createGetCategoriesTool, createGetBatchCategoriesTool, createGetVerificationsTool
+} from './tools/businessInfoTools.js';
+import {
+    createGetQuestionsTool, createUpsertAnswerTool,
+    createDeleteAnswerTool, createDeleteQuestionTool
+} from './tools/qaTools.js';
 
 // Import resource implementations
 import { createBusinessProfileResource } from './resources/businessProfile.js';
@@ -43,6 +69,11 @@ export class McpServer {
     private googleAuthService?: GoogleAuthService;
     private reviewService: IReviewService;
     private llmService: LLMService;
+    private postService: PostService;
+    private qaService: QAService;
+    private mediaService: MediaService;
+    private insightsService: InsightsService;
+    private businessInfoService: BusinessInfoService;
     private isMockMode: boolean;
     
     constructor() {
@@ -68,6 +99,7 @@ export class McpServer {
         );
         
         // Initialize services based on mode
+        let apiClient: GoogleMyBusinessApiClient | null = null;
         if (this.isMockMode) {
             logger.info('🧪 Starting in MOCK MODE - No Google API required');
             this.reviewService = new MockReviewService();
@@ -75,8 +107,19 @@ export class McpServer {
             logger.info('🚀 Starting in PRODUCTION MODE - Google API required');
             this.googleAuthService = new GoogleAuthService();
             this.reviewService = new ReviewService(this.googleAuthService);
+            apiClient = new GoogleMyBusinessApiClient(this.googleAuthService);
         }
-        
+
+        // Initialize extended-surface services. They share one apiClient in
+        // production mode and run in mock mode otherwise. apiClient is unused
+        // in mock mode (each service short-circuits to its mock branch).
+        const sharedClient = apiClient ?? new GoogleMyBusinessApiClient(null as any);
+        this.postService = new PostService(sharedClient, this.isMockMode);
+        this.qaService = new QAService(sharedClient, this.isMockMode);
+        this.mediaService = new MediaService(sharedClient, this.isMockMode);
+        this.insightsService = new InsightsService(sharedClient, this.isMockMode);
+        this.businessInfoService = new BusinessInfoService(sharedClient, this.isMockMode);
+
         // Initialize LLM service
         // Note: Sampling capability will be added when MCP SDK supports it directly
         this.llmService = new LLMService();
@@ -172,12 +215,62 @@ export class McpServer {
                 inputSchema: getReviewDayStatsTool.schema.inputSchema,
                 outputSchema: getReviewDayStatsTool.schema.outputSchema
             },
-            async (args: any) => {
-                return await getReviewDayStatsTool.handler(args);
-            }
+            async (args: any) => await getReviewDayStatsTool.handler(args)
         );
-        
-        logger.debug('Tools registered successfully');
+
+        // Delete review reply
+        this.registerSimpleTool('delete_review_reply', createDeleteReviewReplyTool(this.reviewService));
+
+        // Local Posts (4)
+        this.registerSimpleTool('get_local_posts',    createGetLocalPostsTool(this.postService));
+        this.registerSimpleTool('create_local_post',  createCreateLocalPostTool(this.postService));
+        this.registerSimpleTool('update_local_post',  createUpdateLocalPostTool(this.postService));
+        this.registerSimpleTool('delete_local_post',  createDeleteLocalPostTool(this.postService));
+
+        // Media (4)
+        this.registerSimpleTool('get_media',          createGetMediaTool(this.mediaService));
+        this.registerSimpleTool('create_media',       createCreateMediaTool(this.mediaService));
+        this.registerSimpleTool('start_media_upload', createStartMediaUploadTool(this.mediaService));
+        this.registerSimpleTool('delete_media',       createDeleteMediaTool(this.mediaService));
+
+        // Insights (3)
+        this.registerSimpleTool('get_daily_metrics',       createGetDailyMetricsTool(this.insightsService));
+        this.registerSimpleTool('get_multi_daily_metrics', createGetMultiDailyMetricsTool(this.insightsService));
+        this.registerSimpleTool('get_search_keywords',     createGetSearchKeywordsTool(this.insightsService));
+
+        // Business Information (7)
+        this.registerSimpleTool('get_location_details',    createGetLocationDetailsTool(this.businessInfoService));
+        this.registerSimpleTool('get_location_attributes', createGetLocationAttributesTool(this.businessInfoService));
+        this.registerSimpleTool('get_available_attributes',createGetAvailableAttributesTool(this.businessInfoService));
+        this.registerSimpleTool('get_services',            createGetServicesTool(this.businessInfoService));
+        this.registerSimpleTool('get_categories',          createGetCategoriesTool(this.businessInfoService));
+        this.registerSimpleTool('get_batch_categories',    createGetBatchCategoriesTool(this.businessInfoService));
+        this.registerSimpleTool('get_verifications',       createGetVerificationsTool(this.businessInfoService));
+
+        // Q&A (4) — beyond InsightfulPipe
+        this.registerSimpleTool('get_questions',   createGetQuestionsTool(this.qaService));
+        this.registerSimpleTool('upsert_answer',   createUpsertAnswerTool(this.qaService));
+        this.registerSimpleTool('delete_answer',   createDeleteAnswerTool(this.qaService));
+        this.registerSimpleTool('delete_question', createDeleteQuestionTool(this.qaService));
+
+        logger.debug(`Tools registered successfully (${5 + 1 + 4 + 4 + 3 + 7 + 4} total)`);
+    }
+
+    /**
+     * Helper for the "extended surface" tools that all expose the same
+     * {schema, handler} shape. Cuts ~10 lines of boilerplate per tool.
+     */
+    private registerSimpleTool(name: string, tool: { schema: { title: string; description: string; inputSchema: any; outputSchema: any }; handler: (args: any) => Promise<any> }): void {
+        this.server.registerTool(
+            name,
+            {
+                title: tool.schema.title,
+                description: tool.schema.description,
+                inputSchema: tool.schema.inputSchema,
+                outputSchema: tool.schema.outputSchema
+            },
+            async (args: any) => await tool.handler(args)
+        );
     }
     
     private registerResources(): void {

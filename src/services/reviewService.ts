@@ -331,6 +331,23 @@ export class ReviewService implements IReviewService {
     }
     
     /**
+     * Delete the owner reply on a specific review.
+     */
+    async deleteReply(locationName: string, reviewId: string): Promise<ServiceResponse<{ success: boolean }>> {
+        try {
+            await this.authService.refreshTokenIfNeeded();
+            const fullLocationPath = await this.resolveLocationPath(locationName);
+            const reviewPath = buildReviewPath(fullLocationPath, reviewId);
+            await this.apiClient.delete(`${reviewPath}/reply`);
+            logger.info(`✅ Reply deleted on review ${reviewId}`);
+            return { success: true, data: { success: true } };
+        } catch (error: any) {
+            logger.error('Error deleting reply:', error);
+            return { success: false, error: error.message || 'Failed to delete reply', errorCode: ERROR_CODES.REPLY_POST_ERROR };
+        }
+    }
+
+    /**
      * Get business profile information
      */
     async getBusinessProfile(locationName?: string): Promise<ServiceResponse<BusinessProfile>> {

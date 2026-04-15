@@ -24,11 +24,15 @@ Upstream covers reviews well. For a private medical practice doing local SEO, re
 
 ### Roadmap
 
-- [ ] Wire posts service tools into mcpServer.ts (registration + handler scaffolding ready)
-- [ ] Wire Q&A tools
-- [ ] Wire media tools (with URL-source upload first; byte upload requires multipart support)
-- [ ] Wire insights tools
-- [ ] Wire business info / attributes tools
+- [x] Wire posts service tools into mcpServer.ts (4 tools)
+- [x] Wire Q&A tools (4 tools — beyond InsightfulPipe coverage)
+- [x] Wire media tools (4 tools, URL-source + streamed upload)
+- [x] Wire insights tools (3 tools — Business Profile Performance API)
+- [x] Wire business info / attributes tools (7 tools)
+- [x] Wire delete_review_reply (InsightfulPipe parity)
+- [x] Mock-mode end-to-end smoke test (boot + 3 sample tool calls verified)
 - [ ] OAuth scope check for additional sub-APIs (current `business.manage` covers most; verify Performance API)
 - [ ] End-to-end test against live GBP once API approval lands
 - [ ] Optional: open-source the fork once stable — there's a real ecosystem gap here
+
+**Status:** 28 MCP tools registered, type-checks clean, mock mode verified.
