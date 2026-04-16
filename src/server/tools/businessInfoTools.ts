@@ -81,15 +81,21 @@ export function createGetServicesTool(svc: BusinessInfoService) {
     return {
         schema: {
             title: 'Get Services',
-            description: 'Retrieve serviceItems for a location (use readMask=serviceItems on the location resource).',
-            inputSchema: { locationName: z.string() },
+            description: 'Retrieve serviceItems for a location. Defaults to readMask=serviceItems; pass a comma-separated readMask to fetch additional fields (name,title,categories,serviceItems,...).',
+            inputSchema: {
+                locationName: z.string(),
+                readMask: z.string().optional().describe('Comma-separated fields. Defaults to "serviceItems".')
+            },
             outputSchema: { serviceItems: z.array(z.any()).optional() }
         },
         handler: async (args: any): Promise<CallToolResult> => {
             try {
-                const result = await svc.getLocation(args.locationName, 'serviceItems');
+                const readMask = args.readMask && String(args.readMask).trim().length > 0
+                    ? String(args.readMask).trim()
+                    : 'serviceItems';
+                const result = await svc.getLocation(args.locationName, readMask);
                 return {
-                    content: [{ type: 'text', text: `Services for ${args.locationName}` }],
+                    content: [{ type: 'text', text: `Services for ${args.locationName} (readMask=${readMask})` }],
                     structuredContent: result as any
                 };
             } catch (e) { return errorResult('get_services', e); }

@@ -25,7 +25,7 @@ export class BusinessInfoService {
     constructor(private apiClient: GoogleMyBusinessApiClient, private mockMode = false) {}
 
     async getLocation(locationName: string, readMask?: string) {
-        if (this.mockMode) return this.mockLocation(locationName);
+        if (this.mockMode) return this.mockLocation(locationName, readMask);
         return this.apiClient.get(locationName, readMask ? { readMask } : undefined, GOOGLE_API.HOSTS.BUSINESS_INFO);
     }
 
@@ -54,7 +54,11 @@ export class BusinessInfoService {
     }
 
     async listCategories(opts: { regionCode?: string; languageCode?: string; filter?: string; view?: string; pageSize?: number } = {}) {
-        if (this.mockMode) return { categories: [], nextPageToken: undefined };
+        if (this.mockMode) {
+            const filtered = filterMockCategories(MOCK_CATEGORIES, opts.filter);
+            const size = opts.pageSize ?? 100;
+            return { categories: filtered.slice(0, size), nextPageToken: undefined };
+        }
         return this.apiClient.get(
             'categories',
             { regionCode: 'US', languageCode: 'en', view: 'BASIC', pageSize: 100, ...opts },
@@ -76,8 +80,8 @@ export class BusinessInfoService {
         return this.apiClient.get(`${locationName}/verifications`, undefined, GOOGLE_API.HOSTS.VERIFICATIONS);
     }
 
-    private mockLocation(locationName: string) {
-        return {
+    private mockLocation(locationName: string, readMask?: string) {
+        const full: Record<string, any> = {
             name: locationName,
             languageCode: 'en',
             storeCode: 'CLT-001',
@@ -85,7 +89,62 @@ export class BusinessInfoService {
             phoneNumbers: { primaryPhone: '+18432521351' },
             categories: { primaryCategory: { name: 'categories/gcid:sexologist' } },
             websiteUri: 'https://doctordurant.com',
-            regularHours: { periods: [] }
+            regularHours: { periods: [] },
+            serviceItems: [
+                {
+                    structuredServiceItem: { serviceTypeId: 'job_type_id:mens_sexual_health_consultation' },
+                    freeFormServiceItem: { label: { displayName: 'Men\'s Sexual Health Consultation' } }
+                },
+                {
+                    freeFormServiceItem: { label: { displayName: 'Premature Ejaculation Treatment' } }
+                },
+                {
+                    freeFormServiceItem: { label: { displayName: 'Erectile Dysfunction Evaluation' } }
+                },
+                {
+                    freeFormServiceItem: { label: { displayName: 'Pelvic Floor Therapy' } }
+                }
+            ]
         };
+        if (!readMask) return full;
+        const fields = readMask.split(',').map(s => s.trim()).filter(Boolean);
+        const projected: Record<string, any> = { name: full.name };
+        for (const f of fields) if (f in full) projected[f] = full[f];
+        return projected;
     }
+}
+
+const MOCK_CATEGORIES = [
+    { name: 'categories/gcid:sexologist', displayName: 'Sexologist', serviceTypes: [] },
+    { name: 'categories/gcid:doctor', displayName: 'Doctor', serviceTypes: [] },
+    { name: 'categories/gcid:physician', displayName: 'Physician', serviceTypes: [] },
+    { name: 'categories/gcid:internist', displayName: 'Internist', serviceTypes: [] },
+    { name: 'categories/gcid:family_practice_physician', displayName: 'Family Practice Physician', serviceTypes: [] },
+    { name: 'categories/gcid:pediatrician', displayName: 'Pediatrician', serviceTypes: [] },
+    { name: 'categories/gcid:urologist', displayName: 'Urologist', serviceTypes: [] },
+    { name: 'categories/gcid:psychologist', displayName: 'Psychologist', serviceTypes: [] },
+    { name: 'categories/gcid:psychiatrist', displayName: 'Psychiatrist', serviceTypes: [] },
+    { name: 'categories/gcid:mental_health_clinic', displayName: 'Mental Health Clinic', serviceTypes: [] },
+    { name: 'categories/gcid:medical_clinic', displayName: 'Medical Clinic', serviceTypes: [] },
+    { name: 'categories/gcid:physical_therapist', displayName: 'Physical Therapist', serviceTypes: [] }
+];
+
+// Supports Google's filter syntax at a minimum: `displayName=*term*` (case-insensitive
+// substring), `displayName=Pediatrician` (exact), or any of those joined with AND.
+function filterMockCategories(cats: typeof MOCK_CATEGORIES, filter?: string) {
+    if (!filter) return cats;
+    const clauses = filter.split(/\s+AND\s+/i).map(c => c.trim()).filter(Boolean);
+    return cats.filter(cat =>
+        clauses.every(clause => {
+            const m = clause.match(/^([A-Za-z_]+)\s*=\s*(.+)$/);
+            if (!m) return true;
+            const [, field, rawValue] = m;
+            const value = rawValue.replace(/^['"]|['"]$/g, '').toLowerCase();
+            const target = String((cat as any)[field] ?? '').toLowerCase();
+            if (value.startsWith('*') && value.endsWith('*')) return target.includes(value.slice(1, -1));
+            if (value.startsWith('*')) return target.endsWith(value.slice(1));
+            if (value.endsWith('*')) return target.startsWith(value.slice(0, -1));
+            return target === value;
+        })
+    );
 }

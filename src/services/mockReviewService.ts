@@ -113,11 +113,54 @@ export class MockReviewService implements IReviewService {
         this.isAuthenticated = true;
         logger.info('Mock authentication completed successfully');
     }
-    getReviewStats(locationName: string): Promise<ServiceResponse<GoogleReviewDayStat[]>> {
-        throw new Error('Method not implemented.');
+    async getReviewStats(locationName: string): Promise<ServiceResponse<GoogleReviewDayStat[]>> {
+        if (!this.checkAuth()) {
+            return { success: false, error: 'Authentication required', errorCode: 'MOCK_AUTH_REQUIRED' };
+        }
+        if (!this.mockLocations.some(loc => loc.name === locationName)) {
+            return { success: false, error: 'Location not found', errorCode: 'LOCATION_NOT_FOUND' };
+        }
+        const ratingOrdinal = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 } as const;
+        const byDay = new Map<string, GoogleReview[]>();
+        for (const r of this.mockReviews) {
+            const day = (r.createTime || '').slice(0, 10) || 'unknown';
+            (byDay.get(day) ?? byDay.set(day, []).get(day)!).push(r);
+        }
+        const stats: GoogleReviewDayStat[] = [...byDay.entries()]
+            .sort(([a], [b]) => (a < b ? 1 : -1))
+            .map(([date, reviews]) => {
+                const dist = { ONE: 0, TWO: 0, THREE: 0, FOUR: 0, FIVE: 0 };
+                let sum = 0;
+                for (const r of reviews) {
+                    if (r.starRating && r.starRating in dist) {
+                        dist[r.starRating as keyof typeof dist]++;
+                        sum += ratingOrdinal[r.starRating as keyof typeof ratingOrdinal];
+                    }
+                }
+                return {
+                    date,
+                    stat: {
+                        totalReviewCount: reviews.length,
+                        averageRating: reviews.length ? Math.round((sum / reviews.length) * 10) / 10 : 0,
+                        ratingDistribution: dist,
+                        comments: reviews.map(r => r.comment ?? '').filter(Boolean)
+                    }
+                };
+            });
+        return { success: true, data: stats };
     }
-    getUnrepliedReviews(locationName: string, pageSize?: number, pageToken?: string): Promise<ServiceResponse<GoogleReview[]>> {
-        throw new Error('Method not implemented.');
+
+    async getUnrepliedReviews(locationName: string, pageSize = 50, pageToken?: string): Promise<ServiceResponse<GoogleReview[]>> {
+        if (!this.checkAuth()) {
+            return { success: false, error: 'Authentication required', errorCode: 'MOCK_AUTH_REQUIRED' };
+        }
+        if (!this.mockLocations.some(loc => loc.name === locationName)) {
+            return { success: false, error: 'Location not found', errorCode: 'LOCATION_NOT_FOUND' };
+        }
+        const unreplied = this.mockReviews.filter(r => !r.reviewReply);
+        const start = pageToken ? parseInt(pageToken, 10) : 0;
+        const end = Math.min(start + pageSize, unreplied.length);
+        return { success: true, data: unreplied.slice(start, end) };
     }
 
     /**
