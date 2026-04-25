@@ -164,6 +164,107 @@ export function createGetBatchCategoriesTool(svc: BusinessInfoService) {
     };
 }
 
+export function createUpdateLocationTool(svc: BusinessInfoService) {
+    return {
+        schema: {
+            title: 'Update Location',
+            description:
+                'Update fields on a Google Business Profile location (PATCH with updateMask). ' +
+                'Provide only the fields you want to overwrite — mask gates which top-level keys ' +
+                'are written. Common use: change title, primary/additional categories, websiteUri, ' +
+                'profile.description, regularHours, phoneNumbers. Use update_services for serviceItems.',
+            inputSchema: {
+                locationName: z.string().describe('locations/{locationId}'),
+                updateMask: z.string().describe('Comma-separated list of top-level fields to overwrite (e.g. "title,categories,websiteUri")'),
+                title: z.string().optional(),
+                websiteUri: z.string().optional(),
+                phoneNumbers: z.any().optional().describe('{primaryPhone, additionalPhones[]}'),
+                categories: z.any().optional().describe('{primaryCategory:{name}, additionalCategories:[{name}]}'),
+                profile: z.any().optional().describe('{description: string}'),
+                regularHours: z.any().optional(),
+                specialHours: z.any().optional(),
+                storeCode: z.string().optional(),
+                labels: z.array(z.string()).optional(),
+                openInfo: z.any().optional()
+            },
+            outputSchema: { name: z.string().optional() }
+        },
+        handler: async (args: any): Promise<CallToolResult> => {
+            try {
+                // Strip control args, pass everything else as the PATCH body so
+                // the caller doesn't have to construct it explicitly.
+                const { locationName, updateMask, ...body } = args;
+                const result = await svc.updateLocation(locationName, body, updateMask);
+                return {
+                    content: [{ type: 'text', text: `Updated ${locationName} (mask: ${updateMask})` }],
+                    structuredContent: result as any
+                };
+            } catch (e) { return errorResult('update_location', e); }
+        }
+    };
+}
+
+export function createUpdateServicesTool(svc: BusinessInfoService) {
+    return {
+        schema: {
+            title: 'Update Services',
+            description:
+                'Replace the serviceItems list on a location. Pass the full new list — ' +
+                'GBP does not merge; serviceItems updateMask is a full overwrite. Each item is ' +
+                'either {structuredServiceItem:{serviceTypeId}} (predefined) or ' +
+                '{freeFormServiceItem:{label:{displayName}}} (custom).',
+            inputSchema: {
+                locationName: z.string().describe('locations/{locationId}'),
+                serviceItems: z.array(z.any()).describe(
+                    'Full new list of service items. Mixing structured + free-form is fine.'
+                )
+            },
+            outputSchema: { serviceItems: z.array(z.any()).optional() }
+        },
+        handler: async (args: any): Promise<CallToolResult> => {
+            try {
+                const result = await svc.updateLocation(
+                    args.locationName,
+                    { serviceItems: args.serviceItems },
+                    'serviceItems'
+                );
+                return {
+                    content: [{ type: 'text', text: `Replaced ${args.serviceItems.length} service items on ${args.locationName}` }],
+                    structuredContent: result as any
+                };
+            } catch (e) { return errorResult('update_services', e); }
+        }
+    };
+}
+
+export function createSetAttributesTool(svc: BusinessInfoService) {
+    return {
+        schema: {
+            title: 'Set Attributes',
+            description:
+                'Replace the attributes list on a location (e.g. wheelchair_accessible, ' +
+                'lgbtq_friendly). Get the catalog of available attribute IDs for the primary ' +
+                'category via get_available_attributes first. Full overwrite — pass the complete list.',
+            inputSchema: {
+                locationName: z.string().describe('locations/{locationId}'),
+                attributes: z.array(z.any()).describe(
+                    'Full attributes list. Each attribute: {name: "attributes/<attrId>", values: [<bool|string>]}'
+                )
+            },
+            outputSchema: { attributes: z.array(z.any()).optional() }
+        },
+        handler: async (args: any): Promise<CallToolResult> => {
+            try {
+                const result = await svc.setAttributes(args.locationName, args.attributes);
+                return {
+                    content: [{ type: 'text', text: `Set ${args.attributes.length} attributes on ${args.locationName}` }],
+                    structuredContent: result as any
+                };
+            } catch (e) { return errorResult('set_attributes', e); }
+        }
+    };
+}
+
 export function createGetVerificationsTool(svc: BusinessInfoService) {
     return {
         schema: {

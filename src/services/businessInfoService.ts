@@ -30,17 +30,36 @@ export class BusinessInfoService {
     }
 
     async updateLocation(locationName: string, body: any, updateMask: string) {
-        if (this.mockMode) { logger.info('mock updateLocation', { locationName, updateMask }); return { ...body, name: locationName }; }
+        if (this.mockMode) {
+            logger.info('mock updateLocation', { locationName, updateMask });
+            // Persist updates into the per-process mock store so subsequent
+            // getLocation calls reflect the change. updateMask gates which
+            // top-level fields actually overwrite.
+            const state = getMockLocationState(locationName);
+            const fields = updateMask.split(',').map(s => s.trim()).filter(Boolean);
+            for (const f of fields) {
+                if (f in body) state[f] = body[f];
+            }
+            return { ...state };
+        }
         return this.apiClient.patch(locationName, body, { updateMask }, GOOGLE_API.HOSTS.BUSINESS_INFO);
     }
 
     async getAttributes(locationName: string) {
-        if (this.mockMode) return { name: `${locationName}/attributes`, attributes: [] };
+        if (this.mockMode) {
+            const state = getMockLocationState(locationName);
+            return { name: `${locationName}/attributes`, attributes: state.attributes ?? [] };
+        }
         return this.apiClient.get(`${locationName}/attributes`, undefined, GOOGLE_API.HOSTS.BUSINESS_INFO);
     }
 
     async setAttributes(locationName: string, attributes: any[]) {
-        if (this.mockMode) { logger.info('mock setAttributes', { locationName, count: attributes.length }); return { attributes }; }
+        if (this.mockMode) {
+            logger.info('mock setAttributes', { locationName, count: attributes.length });
+            const state = getMockLocationState(locationName);
+            state.attributes = attributes;
+            return { name: `${locationName}/attributes`, attributes };
+        }
         return this.apiClient.patch(`${locationName}/attributes`, { attributes }, { updateMask: 'attributes' }, GOOGLE_API.HOSTS.BUSINESS_INFO);
     }
 
@@ -81,37 +100,55 @@ export class BusinessInfoService {
     }
 
     private mockLocation(locationName: string, readMask?: string) {
-        const full: Record<string, any> = {
-            name: locationName,
-            languageCode: 'en',
-            storeCode: 'CLT-001',
-            title: 'Dr. James DuRant — Sexual Health Clinic',
-            phoneNumbers: { primaryPhone: '+18432521351' },
-            categories: { primaryCategory: { name: 'categories/gcid:sexologist' } },
-            websiteUri: 'https://doctordurant.com',
-            regularHours: { periods: [] },
-            serviceItems: [
-                {
-                    structuredServiceItem: { serviceTypeId: 'job_type_id:mens_sexual_health_consultation' },
-                    freeFormServiceItem: { label: { displayName: 'Men\'s Sexual Health Consultation' } }
-                },
-                {
-                    freeFormServiceItem: { label: { displayName: 'Premature Ejaculation Treatment' } }
-                },
-                {
-                    freeFormServiceItem: { label: { displayName: 'Erectile Dysfunction Evaluation' } }
-                },
-                {
-                    freeFormServiceItem: { label: { displayName: 'Pelvic Floor Therapy' } }
-                }
-            ]
-        };
-        if (!readMask) return full;
+        const full = getMockLocationState(locationName);
+        if (!readMask) return { ...full };
         const fields = readMask.split(',').map(s => s.trim()).filter(Boolean);
         const projected: Record<string, any> = { name: full.name };
         for (const f of fields) if (f in full) projected[f] = full[f];
         return projected;
     }
+}
+
+// Per-process mock store. Initialized lazily from the seed below the first
+// time a location is referenced, then mutated in place by updateLocation /
+// setAttributes so subsequent reads see the update. Reset by reloading the
+// MCP server.
+const _MOCK_LOCATION_STATE: Record<string, Record<string, any>> = {};
+
+function getMockLocationState(locationName: string): Record<string, any> {
+    if (!_MOCK_LOCATION_STATE[locationName]) {
+        _MOCK_LOCATION_STATE[locationName] = seedMockLocation(locationName);
+    }
+    return _MOCK_LOCATION_STATE[locationName];
+}
+
+function seedMockLocation(locationName: string): Record<string, any> {
+    return {
+        name: locationName,
+        languageCode: 'en',
+        storeCode: 'CLT-001',
+        title: 'Dr. James DuRant — Sexual Health Clinic',
+        phoneNumbers: { primaryPhone: '+18432521351' },
+        categories: { primaryCategory: { name: 'categories/gcid:sexologist' } },
+        websiteUri: 'https://doctordurant.com',
+        regularHours: { periods: [] },
+        attributes: [],
+        serviceItems: [
+            {
+                structuredServiceItem: { serviceTypeId: 'job_type_id:mens_sexual_health_consultation' },
+                freeFormServiceItem: { label: { displayName: 'Men\'s Sexual Health Consultation' } }
+            },
+            {
+                freeFormServiceItem: { label: { displayName: 'Premature Ejaculation Treatment' } }
+            },
+            {
+                freeFormServiceItem: { label: { displayName: 'Erectile Dysfunction Evaluation' } }
+            },
+            {
+                freeFormServiceItem: { label: { displayName: 'Pelvic Floor Therapy' } }
+            }
+        ]
+    };
 }
 
 const MOCK_CATEGORIES = [
