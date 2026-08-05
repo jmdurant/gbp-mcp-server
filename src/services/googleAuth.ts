@@ -35,20 +35,19 @@ export class GoogleAuthService {
             logger.warn('⚠️  No stored tokens found. Run: node authenticate.js');
         }
         
-        // Set up token refresh handling
+        // Set up token refresh handling. On an auto-refresh Google returns a
+        // new access_token + expiry_date but usually no refresh_token, so keep
+        // the existing one. Persist every refresh so restarts don't re-refresh.
         this.oauth2Client.on('tokens', (tokens: any) => {
-            if (tokens.refresh_token) {
-                this.tokens = {
-                    ...this.tokens,
-                    ...tokens,
-                    expires_at: Date.now() + (tokens.expires_in * 1000)
-                };
-                // Save updated tokens
-                if (this.tokens) {
-                    saveTokens(this.tokens);
-                    logger.debug('Tokens refreshed and saved');
-                }
-            }
+            this.tokens = {
+                ...this.tokens,
+                ...tokens,
+                refresh_token: tokens.refresh_token || this.tokens?.refresh_token,
+                expires_at: tokens.expiry_date
+                    || (this.tokens?.expires_at ?? Date.now() + 3600000)
+            } as GoogleOAuthTokens;
+            saveTokens(this.tokens);
+            logger.debug('Tokens refreshed and saved');
         });
     }
     
@@ -113,10 +112,13 @@ export class GoogleAuthService {
      * Get the authenticated OAuth2 client for making API calls
      */
     getAuthenticatedClient(): any {
-        if (!this.tokens || !this.isTokenValid()) {
+        // Require tokens, but an expired access token is fine as long as we
+        // hold a refresh token — the googleapis client auto-refreshes on the
+        // next API call (and fires the 'tokens' event we persist below).
+        if (!this.tokens || (!this.isTokenValid() && !this.tokens.refresh_token)) {
             throw new Error('Not authenticated or token expired');
         }
-        
+
         return this.oauth2Client;
     }
     
