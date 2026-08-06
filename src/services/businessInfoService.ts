@@ -6,7 +6,7 @@
  *   GET    locations/{l}                                  → location details (readMask)
  *   PATCH  locations/{l}                                  → update fields (updateMask)
  *   GET    locations/{l}/attributes                       → current attributes
- *   PATCH  locations/{l}/attributes                       → set attributes (updateMask)
+ *   PATCH  locations/{l}/attributes                       → set attributes (attributeMask)
  *   GET    attributes (?categoryName=, regionCode=, ...)  → available attributes for category/region
  *   GET    categories  (?regionCode=, languageCode=, ...) → list categories with predefined services
  *   POST   categories:batchGet                            → resolve specific category IDs to service items
@@ -60,7 +60,12 @@ export class BusinessInfoService {
             state.attributes = attributes;
             return { name: `${locationName}/attributes`, attributes };
         }
-        return this.apiClient.patch(`${locationName}/attributes`, { attributes }, { updateMask: 'attributes' }, GOOGLE_API.HOSTS.BUSINESS_INFO);
+        // The UpdateAttributes endpoint uses `attributeMask` (the attribute IDs
+        // being written) as its query param, NOT `updateMask`. The mask must
+        // list every attribute in the body; attributes named in the mask but
+        // absent from the body are removed.
+        const attributeMask = attributes.map(a => a.name).filter(Boolean).join(',');
+        return this.apiClient.patch(`${locationName}/attributes`, { attributes }, { attributeMask }, GOOGLE_API.HOSTS.BUSINESS_INFO);
     }
 
     async availableAttributes(categoryName: string, regionCode = 'US', languageCode = 'en', pageSize = 50) {
