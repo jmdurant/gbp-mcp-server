@@ -60,11 +60,29 @@ export class BusinessInfoService {
             state.attributes = attributes;
             return { name: `${locationName}/attributes`, attributes };
         }
-        // The UpdateAttributes endpoint uses `attributeMask` (the attribute IDs
-        // being written) as its query param, NOT `updateMask`. The mask must
-        // list every attribute in the body; attributes named in the mask but
-        // absent from the body are removed.
-        const attributeMask = attributes.map(a => a.name).filter(Boolean).join(',');
+        // Full-overwrite semantics. The UpdateAttributes endpoint uses
+        // `attributeMask` (NOT `updateMask`), and Google removes any attribute
+        // named in the mask but absent from the body. To make "pass the complete
+        // list" truly replace — deleting omitted attributes — the mask must cover
+        // the union of the location's current attribute names and the new ones.
+        // (Masking only the body would silently leave omitted attributes in
+        // place, so callers could add/update but never remove by omission.)
+        // If reading current attributes fails, fall back to masking just the
+        // provided attributes (add/update only).
+        const newNames = attributes.map(a => a.name).filter(Boolean);
+        let maskNames = newNames;
+        try {
+            const current: any = await this.apiClient.get(
+                `${locationName}/attributes`, undefined, GOOGLE_API.HOSTS.BUSINESS_INFO
+            );
+            const existingNames = (current?.attributes ?? [])
+                .map((a: any) => a.name)
+                .filter(Boolean);
+            maskNames = Array.from(new Set([...existingNames, ...newNames]));
+        } catch {
+            logger.warn('setAttributes: could not read current attributes; masking provided attributes only');
+        }
+        const attributeMask = maskNames.join(',');
         return this.apiClient.patch(`${locationName}/attributes`, { attributes }, { attributeMask }, GOOGLE_API.HOSTS.BUSINESS_INFO);
     }
 
