@@ -38,8 +38,12 @@ export class InsightsService {
 
     async dailyMetric(locationName: string, metric: DailyMetric, range: DateRange) {
         if (this.mockMode) return this.mockSeries(metric);
+        // Custom method, colon-suffixed on the resource itself:
+        //   GET /v1/{name=locations/*}:getDailyMetricsTimeSeries
+        // The previous form (`{name}/dailyMetricsTimeSeries:get`) is not a real route
+        // and returned an HTML 404 page from Google's edge.
         return this.apiClient.get(
-            `${locationName}/dailyMetricsTimeSeries:get`,
+            `${locationName}:getDailyMetricsTimeSeries`,
             {
                 dailyMetric: metric,
                 'dailyRange.startDate.year': range.startDate.year,
@@ -61,7 +65,9 @@ export class InsightsService {
         return this.apiClient.get(
             `${locationName}:fetchMultiDailyMetricsTimeSeries`,
             {
-                dailyMetrics: metrics.join(','),
+                // Repeated proto field -> repeated query param (?dailyMetrics=A&dailyMetrics=B).
+                // Joining with a comma yields 400 "Invalid value at 'daily_metrics'".
+                dailyMetrics: metrics,
                 'dailyRange.startDate.year': range.startDate.year,
                 'dailyRange.startDate.month': range.startDate.month,
                 'dailyRange.startDate.day': range.startDate.day,

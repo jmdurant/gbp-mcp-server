@@ -277,12 +277,15 @@ export class ReviewService implements IReviewService {
             return this.getUnrepliedReviews(locationName, pageSize, reviewsResult.data.nextPageToken);
         }
 
+        // Return the FILTERED list. Previously this returned
+        // `reviewsResult.data.reviews`, i.e. every review on the page regardless of
+        // reply status, which made the tool indistinguishable from get_reviews.
         return {
             success: true,
-            data: reviewsResult.data?.reviews || []
+            data: reviews
         };
     }
-    
+
     /**
      * Post a reply to a specific review
      */
