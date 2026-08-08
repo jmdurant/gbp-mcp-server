@@ -9,6 +9,30 @@ import { logger } from '../../utils/logger.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { BusinessInfoService } from '../../services/businessInfoService.js';
 
+// Object/array-valued location fields that some MCP clients send as a JSON
+// string instead of a real object (e.g. profile as '{"description":"..."}').
+// The Business Information API rejects the stringified form, so parse any such
+// field back into an object before it becomes the PATCH body.
+const JSON_VALUED_LOCATION_FIELDS = [
+    'profile', 'categories', 'phoneNumbers', 'regularHours',
+    'specialHours', 'openInfo', 'labels', 'serviceItems'
+];
+
+function coerceJsonValuedFields(body: Record<string, any>): Record<string, any> {
+    for (const field of JSON_VALUED_LOCATION_FIELDS) {
+        const value = body[field];
+        if (typeof value === 'string') {
+            try {
+                body[field] = JSON.parse(value);
+            } catch {
+                // Leave as-is; let the API surface a clear validation error.
+                logger.warn(`update_location: ${field} was a string but not valid JSON`);
+            }
+        }
+    }
+    return body;
+}
+
 export function createGetLocationDetailsTool(svc: BusinessInfoService) {
     return {
         schema: {
@@ -192,8 +216,10 @@ export function createUpdateLocationTool(svc: BusinessInfoService) {
         handler: async (args: any): Promise<CallToolResult> => {
             try {
                 // Strip control args, pass everything else as the PATCH body so
-                // the caller doesn't have to construct it explicitly.
+                // the caller doesn't have to construct it explicitly. Coerce any
+                // object fields that arrived as JSON strings back into objects.
                 const { locationName, updateMask, ...body } = args;
+                coerceJsonValuedFields(body);
                 const result = await svc.updateLocation(locationName, body, updateMask);
                 return {
                     content: [{ type: 'text', text: `Updated ${locationName} (mask: ${updateMask})` }],
@@ -223,13 +249,16 @@ export function createUpdateServicesTool(svc: BusinessInfoService) {
         },
         handler: async (args: any): Promise<CallToolResult> => {
             try {
+                const serviceItems = typeof args.serviceItems === 'string'
+                    ? JSON.parse(args.serviceItems)
+                    : args.serviceItems;
                 const result = await svc.updateLocation(
                     args.locationName,
-                    { serviceItems: args.serviceItems },
+                    { serviceItems },
                     'serviceItems'
                 );
                 return {
-                    content: [{ type: 'text', text: `Replaced ${args.serviceItems.length} service items on ${args.locationName}` }],
+                    content: [{ type: 'text', text: `Replaced ${serviceItems.length} service items on ${args.locationName}` }],
                     structuredContent: result as any
                 };
             } catch (e) { return errorResult('update_services', e); }

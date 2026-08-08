@@ -7,7 +7,10 @@
  * Google Business Profile reviews with AI-powered responses.
  */
 
-import 'dotenv/config';
+// Load .env from the server's own folder (not the cwd) so the server works
+// when launched from any project. Must be the first import — side effect runs
+// before any config-reading module is evaluated.
+import './utils/loadEnv.js';
 import { McpServer } from './server/mcpServer.js';
 import { logger } from './utils/logger.js';
 import { validateEnvironment } from './utils/config.js';

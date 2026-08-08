@@ -37,23 +37,30 @@ export function buildReviewPath(
 }
 
 /**
- * Builds an API URL with query parameters
+ * Builds an API URL with query parameters.
+ *
+ * Array values are emitted as REPEATED query parameters (`?k=a&k=b`), which is how
+ * Google's REST transcoding expects repeated proto fields. Joining them with a comma
+ * produces a 400 "Invalid value at ..." from the API.
  */
 export function buildApiUrl(
     baseUrl: string,
     path: string,
-    params?: Record<string, string | number | boolean | undefined>
+    params?: Record<string, string | number | boolean | readonly (string | number)[] | undefined>
 ): string {
     const url = new URL(`${baseUrl}/${path}`);
-    
+
     if (params) {
         Object.entries(params).forEach(([key, value]) => {
-            if (value !== undefined) {
+            if (value === undefined) return;
+            if (Array.isArray(value)) {
+                value.forEach(v => url.searchParams.append(key, String(v)));
+            } else {
                 url.searchParams.append(key, String(value));
             }
         });
     }
-    
+
     return url.toString();
 }
 

@@ -12,6 +12,7 @@
 
 import { GoogleMyBusinessApiClient } from './apiClient.js';
 import { logger } from '../utils/logger.js';
+import { buildFullLocationPath } from '../utils/pathHelpers.js';
 
 export type MediaCategory =
     | 'COVER' | 'PROFILE' | 'LOGO' | 'EXTERIOR' | 'INTERIOR'
@@ -34,10 +35,25 @@ export interface MediaItem {
 export class MediaService {
     constructor(private apiClient: GoogleMyBusinessApiClient, private mockMode = false) {}
 
+    /**
+     * The v4 media collection lives under `accounts/{a}/locations/{l}`. Callers routinely
+     * pass a bare `locations/{l}` (that is what list_locations returns), which produced
+     * `/v4/locations/{l}/media` and an HTML 404 from Google's edge. Resolve the account
+     * prefix first, matching ReviewService.resolveLocationPath.
+     */
+    private async resolveLocationPath(locationName: string): Promise<string> {
+        if (locationName.includes('accounts/')) {
+            return locationName;
+        }
+        const account = await this.apiClient.getFirstAccount();
+        return buildFullLocationPath(locationName, account.name);
+    }
+
     async list(locationName: string, pageSize = 100, pageToken?: string) {
         if (this.mockMode) return { mediaItems: [], totalMediaItemCount: 0, nextPageToken: undefined };
+        const fullPath = await this.resolveLocationPath(locationName);
         return this.apiClient.get<{ mediaItems: MediaItem[]; totalMediaItemCount: number; nextPageToken?: string }>(
-            `${locationName}/media`,
+            `${fullPath}/media`,
             { pageSize, pageToken }
         );
     }
@@ -47,7 +63,8 @@ export class MediaService {
             logger.info('mock mediaService.createFromUrl', { locationName, sourceUrl, category });
             return { name: `${locationName}/media/mock-${Date.now()}`, mediaFormat: format, sourceUrl, locationAssociation: { category } } as MediaItem;
         }
-        return this.apiClient.post<MediaItem>(`${locationName}/media`, {
+        const fullPath = await this.resolveLocationPath(locationName);
+        return this.apiClient.post<MediaItem>(`${fullPath}/media`, {
             mediaFormat: format,
             sourceUrl,
             locationAssociation: { category },
@@ -57,7 +74,8 @@ export class MediaService {
 
     async startUpload(locationName: string) {
         if (this.mockMode) return { resourceName: `${locationName}/media/mock-upload-${Date.now()}` };
-        return this.apiClient.post<{ resourceName: string }>(`${locationName}/media:startUpload`, {});
+        const fullPath = await this.resolveLocationPath(locationName);
+        return this.apiClient.post<{ resourceName: string }>(`${fullPath}/media:startUpload`, {});
     }
 
     async delete(mediaName: string) {

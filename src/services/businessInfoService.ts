@@ -6,7 +6,7 @@
  *   GET    locations/{l}                                  → location details (readMask)
  *   PATCH  locations/{l}                                  → update fields (updateMask)
  *   GET    locations/{l}/attributes                       → current attributes
- *   PATCH  locations/{l}/attributes                       → set attributes (updateMask)
+ *   PATCH  locations/{l}/attributes                       → set attributes (attributeMask)
  *   GET    attributes (?categoryName=, regionCode=, ...)  → available attributes for category/region
  *   GET    categories  (?regionCode=, languageCode=, ...) → list categories with predefined services
  *   POST   categories:batchGet                            → resolve specific category IDs to service items
@@ -60,7 +60,30 @@ export class BusinessInfoService {
             state.attributes = attributes;
             return { name: `${locationName}/attributes`, attributes };
         }
-        return this.apiClient.patch(`${locationName}/attributes`, { attributes }, { updateMask: 'attributes' }, GOOGLE_API.HOSTS.BUSINESS_INFO);
+        // Full-overwrite semantics. The UpdateAttributes endpoint uses
+        // `attributeMask` (NOT `updateMask`), and Google removes any attribute
+        // named in the mask but absent from the body. To make "pass the complete
+        // list" truly replace — deleting omitted attributes — the mask must cover
+        // the union of the location's current attribute names and the new ones.
+        // (Masking only the body would silently leave omitted attributes in
+        // place, so callers could add/update but never remove by omission.)
+        // If reading current attributes fails, fall back to masking just the
+        // provided attributes (add/update only).
+        const newNames = attributes.map(a => a.name).filter(Boolean);
+        let maskNames = newNames;
+        try {
+            const current: any = await this.apiClient.get(
+                `${locationName}/attributes`, undefined, GOOGLE_API.HOSTS.BUSINESS_INFO
+            );
+            const existingNames = (current?.attributes ?? [])
+                .map((a: any) => a.name)
+                .filter(Boolean);
+            maskNames = Array.from(new Set([...existingNames, ...newNames]));
+        } catch {
+            logger.warn('setAttributes: could not read current attributes; masking provided attributes only');
+        }
+        const attributeMask = maskNames.join(',');
+        return this.apiClient.patch(`${locationName}/attributes`, { attributes }, { attributeMask }, GOOGLE_API.HOSTS.BUSINESS_INFO);
     }
 
     async availableAttributes(categoryName: string, regionCode = 'US', languageCode = 'en', pageSize = 50) {

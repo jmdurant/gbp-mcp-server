@@ -15,6 +15,7 @@
 
 import { GoogleMyBusinessApiClient } from './apiClient.js';
 import { logger } from '../utils/logger.js';
+import { buildFullLocationPath } from '../utils/pathHelpers.js';
 
 export type LocalPostType = 'STANDARD' | 'EVENT' | 'OFFER' | 'ALERT';
 
@@ -36,12 +37,27 @@ export interface LocalPost {
 export class PostService {
     constructor(private apiClient: GoogleMyBusinessApiClient, private mockMode = false) {}
 
+    /**
+     * The v4 localPosts collection lives under `accounts/{a}/locations/{l}`. Callers
+     * routinely pass a bare `locations/{l}` (that is what list_locations returns), which
+     * produced `/v4/locations/{l}/localPosts` and an HTML 404 from Google's edge.
+     * Resolve the account prefix first, matching ReviewService.resolveLocationPath.
+     */
+    private async resolveLocationPath(locationName: string): Promise<string> {
+        if (locationName.includes('accounts/')) {
+            return locationName;
+        }
+        const account = await this.apiClient.getFirstAccount();
+        return buildFullLocationPath(locationName, account.name);
+    }
+
     async list(locationName: string, pageSize = 100, pageToken?: string) {
         if (this.mockMode) {
             return { localPosts: this.mockPosts(), nextPageToken: undefined };
         }
+        const fullPath = await this.resolveLocationPath(locationName);
         return this.apiClient.get<{ localPosts: LocalPost[]; nextPageToken?: string }>(
-            `${locationName}/localPosts`,
+            `${fullPath}/localPosts`,
             { pageSize, pageToken }
         );
     }
@@ -51,7 +67,8 @@ export class PostService {
             logger.info('mock postService.create', { locationName, summary: post.summary });
             return { ...post, name: `${locationName}/localPosts/mock-${Date.now()}`, state: 'LIVE', createTime: new Date().toISOString() } as LocalPost;
         }
-        return this.apiClient.post<LocalPost>(`${locationName}/localPosts`, post);
+        const fullPath = await this.resolveLocationPath(locationName);
+        return this.apiClient.post<LocalPost>(`${fullPath}/localPosts`, post);
     }
 
     async update(postName: string, post: Partial<LocalPost>, updateMask: string) {
