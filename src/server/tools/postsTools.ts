@@ -100,7 +100,14 @@ export function createUpdateLocalPostTool(postService: PostService) {
                 postName: z.string().describe('Full post resource name (accounts/{a}/locations/{l}/localPosts/{p})'),
                 updateMask: z.string().describe('Comma-separated list of fields to update'),
                 summary: z.string().optional(),
-                callToAction: z.any().optional(),
+                // Was z.any(), which emits an empty JSON schema. Clients then pass
+                // the value through as a string and the API rejects it with
+                // INVALID_ARGUMENT on local_post.call_to_action. Mirrors the
+                // shape already used by create_local_post above.
+                callToAction: z.object({
+                    actionType: z.enum(['BOOK', 'ORDER', 'SHOP', 'LEARN_MORE', 'SIGN_UP', 'CALL']),
+                    url: z.string().url().optional()
+                }).optional(),
                 media: z.array(z.any()).optional(),
                 event: z.any().optional(),
                 offer: z.any().optional()
