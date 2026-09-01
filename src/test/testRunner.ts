@@ -5,6 +5,8 @@
 
 import { MockReviewService } from '../services/mockReviewService.js';
 import { LLMService } from '../services/llmService.js';
+import { InsightsService } from '../services/insightsService.js';
+import { createGenerateReplyTool } from '../server/tools/generateReply.js';
 import { logger } from '../utils/logger.js';
 import { testConfig, mockTestData } from './testConfig.js';
 import { ServerContext } from "@modelcontextprotocol/server";
@@ -47,6 +49,7 @@ export class MCPServerTester {
             await this.testListLocations();
             await this.testGetReviews();
             await this.testGenerateReplies();
+            await this.testSyntheticDateBinding();
             await this.testPostReplies();
             await this.testBusinessProfile();
             await this.testErrorHandling();
@@ -159,7 +162,66 @@ export class MCPServerTester {
             }
         }
 
+        // Codex does not expose MCP sampling to child servers. That transport
+        // difference must degrade to the deterministic template, not fail the
+        // entire marketing role.
+        const samplingUnavailable = {
+            mcpReq: {
+                ...this.extra.mcpReq,
+                requestSampling: async () => {
+                    throw new Error('sampling capability unavailable');
+                },
+            },
+        } as unknown as ServerContext;
+        const fallback = await new LLMService().generateReply(
+            'Great visit and kind staff.',
+            5,
+            'Developmental On Demand',
+            {},
+            samplingUnavailable,
+        );
+        if (!fallback.success || !fallback.data?.replyText) {
+            throw new Error('Sampling-unavailable template fallback failed');
+        }
+
+        const toolResult = await createGenerateReplyTool(new LLMService()).handler({
+            reviewText: 'Great visit and kind staff.',
+            starRating: 5,
+            businessName: 'Developmental On Demand',
+        }, samplingUnavailable);
+        if (toolResult.isError || !(toolResult as any).structuredContent?.replyText) {
+            throw new Error('Generate-reply tool did not return structured template fallback');
+        }
+
         logger.info('✅ Reply generation test passed');
+    }
+
+    /** Mock performance data must honor the caller's synthetic date range. */
+    async testSyntheticDateBinding(): Promise<void> {
+        logger.info('📅 Testing synthetic metrics date binding...');
+        const service = new InsightsService({} as any, true);
+        const range = {
+            startDate: { year: 2026, month: 9, day: 1 },
+            endDate: { year: 2026, month: 9, day: 7 },
+        };
+        const result: any = await service.multiDailyMetrics(
+            'locations/synthetic-fixture',
+            ['WEBSITE_CLICKS', 'CALL_CLICKS'],
+            range,
+        );
+        const series = result.multiDailyMetricTimeSeries;
+        if (series.length !== 2) throw new Error('Expected both requested metric series');
+        for (const item of series) {
+            const points = item.dailyMetricTimeSeries.timeSeries.datedValues;
+            if (points.length !== 7) throw new Error('Expected seven inclusive synthetic dates');
+            const first = points[0].date;
+            const last = points[6].date;
+            if (JSON.stringify(first) !== JSON.stringify(range.startDate)
+                || JSON.stringify(last) !== JSON.stringify(range.endDate)) {
+                throw new Error(`Mock metrics escaped requested synthetic range: ${JSON.stringify({ first, last })}`);
+            }
+        }
+        logger.info('✅ Synthetic metrics date binding test passed');
     }
 
     /**

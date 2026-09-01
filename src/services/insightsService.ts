@@ -37,7 +37,7 @@ export class InsightsService {
     constructor(private apiClient: GoogleMyBusinessApiClient, private mockMode = false) {}
 
     async dailyMetric(locationName: string, metric: DailyMetric, range: DateRange) {
-        if (this.mockMode) return this.mockSeries(metric);
+        if (this.mockMode) return this.mockSeries(metric, range);
         return this.apiClient.get(
             `${locationName}/dailyMetricsTimeSeries:get`,
             {
@@ -56,7 +56,7 @@ export class InsightsService {
     async multiDailyMetrics(locationName: string, metrics: DailyMetric[], range: DateRange) {
         if (this.mockMode) {
             logger.info('mock insightsService.multiDailyMetrics', { metrics });
-            return { multiDailyMetricTimeSeries: metrics.map(m => ({ dailyMetricTimeSeries: this.mockSeries(m) })) };
+            return { multiDailyMetricTimeSeries: metrics.map(m => ({ dailyMetricTimeSeries: this.mockSeries(m, range) })) };
         }
         return this.apiClient.get(
             `${locationName}:fetchMultiDailyMetricsTimeSeries`,
@@ -95,14 +95,20 @@ export class InsightsService {
         );
     }
 
-    private mockSeries(metric: DailyMetric) {
-        const today = new Date();
-        const points = Array.from({ length: 7 }, (_, i) => {
-            const d = new Date(today);
-            d.setDate(d.getDate() - (6 - i));
+    private mockSeries(metric: DailyMetric, range: DateRange) {
+        const start = Date.UTC(range.startDate.year, range.startDate.month - 1, range.startDate.day);
+        const end = Date.UTC(range.endDate.year, range.endDate.month - 1, range.endDate.day);
+        if (!Number.isFinite(start) || !Number.isFinite(end) || start > end) {
+            throw new Error('Invalid daily metrics date range');
+        }
+
+        const dayMs = 24 * 60 * 60 * 1000;
+        const metricSeed = [...metric].reduce((sum, character) => sum + character.charCodeAt(0), 0);
+        const points = Array.from({ length: Math.floor((end - start) / dayMs) + 1 }, (_, i) => {
+            const d = new Date(start + i * dayMs);
             return {
-                date: { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() },
-                value: String(Math.floor(Math.random() * 50 + 10))
+                date: { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() },
+                value: String(10 + ((metricSeed + i * 17) % 50))
             };
         });
         return { dailyMetric: metric, timeSeries: { datedValues: points } };

@@ -87,6 +87,7 @@ reviewText: string, starRating: number, businessName: string, options: {
             
             let replyText: string;
             let confidence: number;
+            let generationMethod: 'sampling' | 'template';
             
             // Try to use LLM sampling if available
             if (this.samplingCallback) {
@@ -94,19 +95,32 @@ reviewText: string, starRating: number, businessName: string, options: {
                     logger.info('Using AI sampling for reply generation');
                     replyText = await this.samplingCallback(prompt);
                     confidence = 0.9; // High confidence for AI-generated replies
+                    generationMethod = 'sampling';
                     logger.info('AI-generated reply received', { length: replyText.length });
                 } catch (samplingError) {
                     logger.warn('AI sampling failed, falling back to template', { error: samplingError });
                     replyText = generateTemplateResponse(reviewText, starRating, businessName, replyTone);
                     confidence = calculateResponseConfidence(reviewText, starRating, replyText);
+                    generationMethod = 'template';
                 }
             } else {
-                logger.info('No AI sampling available, using template response');
-                replyText = await requestSampling(prompt, extra.mcpReq.requestSampling);
-                confidence = 0.9; // High confidence for AI-generated replies
+                try {
+                    logger.info('Requesting MCP client sampling for reply generation');
+                    replyText = await requestSampling(prompt, extra.mcpReq.requestSampling);
+                    confidence = 0.9;
+                    generationMethod = 'sampling';
+                } catch (samplingError) {
+                    // Codex transports do not currently provide sampling. Reply
+                    // generation is deterministic and safe to continue using the
+                    // same template fallback already used for callback failures.
+                    logger.warn('MCP client sampling failed, falling back to template', { error: samplingError });
+                    replyText = generateTemplateResponse(reviewText, starRating, businessName, replyTone);
+                    confidence = calculateResponseConfidence(reviewText, starRating, replyText);
+                    generationMethod = 'template';
+                }
             }
             
-            logger.info('Reply generated successfully', { sentiment, confidence, method: this.samplingCallback ? 'AI' : 'template' });
+            logger.info('Reply generated successfully', { sentiment, confidence, method: generationMethod });
             
             return {
                 success: true,

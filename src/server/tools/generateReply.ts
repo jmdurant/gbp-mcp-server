@@ -53,11 +53,13 @@ export function createGenerateReplyTool(llmService: LLMService): GenerateReplyTo
                 includePersonalization: z.boolean().optional().default(true)
                     .describe('Whether to include personalized references to the review content')
             },
+            // MCP output schemas describe structuredContent, not the outer
+            // CallToolResult envelope.
             outputSchema: z.object({
-                content: z.array(z.object({
-                    type: z.string(),
-                    text: z.string()
-                }))
+                replyText: z.string(),
+                tone: z.enum(['professional', 'friendly', 'apologetic', 'grateful']),
+                sentiment: z.enum(['positive', 'negative', 'neutral']),
+                confidence: z.number()
             })
         },
         
@@ -126,7 +128,8 @@ export function createGenerateReplyTool(llmService: LLMService): GenerateReplyTo
                                   `Sentiment: ${replyData.sentiment}\n` +
                                   `Confidence: ${Math.round(replyData.confidence * 100)}%`
                         }
-                    ]
+                    ],
+                    structuredContent: replyData
                 };
                 return response;
                 
