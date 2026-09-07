@@ -166,8 +166,7 @@ docs/.vitepress/cache
 dev-data/
 debug.log
 
-# Package-lock (if using npm)
-package-lock.json
+# Track npm's package-lock.json so workstation installs are reproducible.
 
 # Yarn lock file (if using yarn)
 yarn.lock
