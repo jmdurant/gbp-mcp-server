@@ -1,0 +1,32 @@
+name: Skip-ci guard
+# GitHub never starts push/pull_request runs for "[skip ci]" commits, so this cannot run in the
+# skipped push. schedule and workflow_dispatch are not suppressed by commit messages; the push
+# trigger also catches the next normal push. See practice-stack docs/program/packages/REL-BRANCH.md.
+on:
+  schedule:
+    - cron: '17 * * * *'
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  # Push-triggered CI workflow whose last green run bounds the scan; blank = lookback window only.
+  CI_WORKFLOW: 
+jobs:
+  guard:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Fail on skip-ci commits that changed tests/cli/stack/src/config
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 .github/scripts/skip-ci-guard.py \
+            --repo "${{ github.repository }}" --branch "${{ github.event.repository.default_branch }}" \
+            --ci-workflow "$CI_WORKFLOW" --since-days 7

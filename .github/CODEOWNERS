@@ -1,0 +1,2 @@
+# Owner review for every path (REL-BRANCH). Agents push directly; this records ownership, it does not gate pushes.
+* @jmdurant
