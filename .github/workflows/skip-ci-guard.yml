@@ -4,7 +4,7 @@ name: Skip-ci guard
 # trigger also catches the next normal push. See practice-stack docs/program/packages/REL-BRANCH.md.
 on:
   schedule:
-    - cron: '17 * * * *'
+    - cron: '17 6 * * *'
   push:
     branches: [main]
   workflow_dispatch:
