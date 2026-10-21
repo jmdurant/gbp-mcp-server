@@ -8,11 +8,13 @@ import { logger } from '../utils/logger.js';
 import { GOOGLE_API } from '../utils/constants.js';
 import { loadTokens, saveTokens } from '../utils/tokenStorage.js';
 import type { GoogleOAuthTokens, AuthState } from '../types/index.js';
+import { OAuthAttempt } from '../utils/oauthAttempt.js';
 
 export class GoogleAuthService {
     private config = getConfig();
     private oauth2Client: any;
     private tokens: GoogleOAuthTokens | null = null;
+    private pendingAttempt: OAuthAttempt | null = null;
     
     constructor() {
         this.oauth2Client = new google.auth.OAuth2(
@@ -55,11 +57,14 @@ export class GoogleAuthService {
     /**
      * Generate the authorization URL for OAuth flow
      */
-    getAuthUrl(state?: string): string {
+    getAuthUrl(): string {
+        this.pendingAttempt = new OAuthAttempt();
         return this.oauth2Client.generateAuthUrl({
             access_type: 'offline',
             scope: GOOGLE_API.SCOPES,
-            state: state,
+            state: this.pendingAttempt.state,
+            code_challenge: this.pendingAttempt.challenge,
+            code_challenge_method: 'S256',
             prompt: 'consent'
         });
     }
@@ -69,7 +74,9 @@ export class GoogleAuthService {
      */
     async handleCallback(code: string, state?: string): Promise<GoogleOAuthTokens> {
         try {
-            const { tokens } = await this.oauth2Client.getToken(code);
+            if (!this.pendingAttempt) throw new Error('No pending OAuth attempt');
+            const exchange = this.pendingAttempt.consume(code, state);
+            const { tokens } = await this.oauth2Client.getToken(exchange);
             
             this.tokens = {
                 access_token: tokens.access_token,
@@ -158,6 +165,7 @@ export class GoogleAuthService {
      * Revoke the current tokens and clear authentication
      */
     async logout(): Promise<void> {
+        this.pendingAttempt = null;
         if (this.tokens?.access_token) {
             try {
                 await this.oauth2Client.revokeCredentials();

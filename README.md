@@ -21,6 +21,22 @@ Compared to [InsightfulPipe's hosted MCP](https://insightfulpipe.com/mcp-servers
 
 ## Prerequisites
 
+### Local OAuth security
+
+`npm run auth` opens a temporary **loopback-only** listener on port 3000;
+keep `http://localhost:3000/auth/callback` registered with Google. Each attempt
+uses random, five-minute, one-use state and S256 PKCE. Invalid callbacks do not
+replace tokens or cancel the intended pending attempt. After an exchange error
+or expiry, restart the helper to initiate a new attempt.
+
+Enrollment and runtime persistence share an atomic token writer. On POSIX,
+new and replacement `.tokens.json` files are mode `0600`, including under a
+permissive umask. Keep the package directory operator-owned and non-writable
+by other users. Windows additionally requires a private user-profile directory
+ACL; POSIX mode bits do not establish Windows confidentiality. Never commit or
+copy the token file into a public directory. `npm run test:security` runs the
+offline callback, PKCE, replay and token-file regressions without Google traffic.
+
 - Node.js 18.0.0 or higher
 - Google Cloud Platform account with My Business API enabled
 - Google OAuth 2.0 credentials

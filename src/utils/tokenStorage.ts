@@ -2,7 +2,8 @@
  * Token storage utilities for persisting OAuth tokens
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
+import { writePrivateTokenFile } from './privateTokenFile.js';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { logger } from './logger.js';
@@ -39,7 +40,7 @@ export function loadTokens(): GoogleOAuthTokens | null {
  */
 export function saveTokens(tokens: GoogleOAuthTokens): boolean {
     try {
-        writeFileSync(TOKENS_FILE, JSON.stringify(tokens, null, 2));
+        writePrivateTokenFile(TOKENS_FILE, JSON.stringify(tokens, null, 2));
         logger.debug('Tokens saved to disk');
         return true;
         
@@ -62,7 +63,7 @@ export function hasStoredTokens(): boolean {
 export function clearTokens(): boolean {
     try {
         if (existsSync(TOKENS_FILE)) {
-            writeFileSync(TOKENS_FILE, '');
+            writePrivateTokenFile(TOKENS_FILE, '');
             logger.debug('Tokens cleared');
         }
         return true;

@@ -4,6 +4,14 @@ This is a fork of [satheeshds/gbp-review-agent](https://github.com/satheeshds/gb
 
 ## v0.2.0 (forked)
 
+### Security repairs (2026-10-21)
+
+- Bind OAuth callbacks to a short-lived one-use attempt with S256 PKCE; bind
+  the enrollment HTTP listener to loopback and suppress provider exception bodies.
+- Use one private atomic token writer for enrollment, refresh and clearing;
+  compile shared helpers into the existing `build/` package layout.
+- Retain offline security regressions in the normal `npm test` path.
+
 ### New service stubs (mock-mode runnable today, real GBP API wired when API access is approved)
 
 - `postService` — local posts: list, create, update, delete (STANDARD/EVENT/OFFER/ALERT)
