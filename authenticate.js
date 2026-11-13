@@ -9,7 +9,7 @@ import open from 'open';
 import { OAuthAttempt, createOAuthCallback } from './src/utils/oauthAttempt.js';
 import { writePrivateTokenFile } from './src/utils/privateTokenFile.js';
 
-config();
+config({ quiet: true });
 const PORT = 3000;
 const TOKENS_FILE = join(dirname(fileURLToPath(import.meta.url)), '.tokens.json');
 const client = new google.auth.OAuth2(
