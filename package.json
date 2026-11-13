@@ -26,7 +26,6 @@
     "setup:vscode": "node setup-vscode-copilot.js",
     "logs": "node monitor-logs.js",
     "logs:debug": "cross-env LOG_LEVEL=debug node monitor-logs.js",
-    "lint": "eslint src/**/*.ts",
     "clean": "rm -rf build"
   },
   "keywords": [
@@ -58,13 +57,9 @@
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.6",
-    "@typescript-eslint/eslint-plugin": "^8.72.2",
-    "@typescript-eslint/parser": "^8.72.2",
     "cross-env": "^10.1.0",
-    "eslint": "^10.14.0",
-    "jest": "^30.5.2",
     "tsx": "^4.23.15",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "files": [
     "build"
