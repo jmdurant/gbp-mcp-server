@@ -8,6 +8,8 @@ A Model Context Protocol (MCP) server covering the full Google Business Profile 
 
 **28 MCP tools across 6 surfaces.** Mock mode lets you develop against the full tool surface today; live mode requires [GBP API access approval](https://developers.google.com/my-business/content/prereqs) (60+ day waitlist).
 
+Set `GBP_MOCK_PRACTICE_NAME` in mock mode to use a synthetic clinic listing, administrative reviews and a registration question for that practice. The fixture has no public Google Place ID or review URL. Leave it unset to use the sample businesses.
+
 - **Reviews** (5 tools) — `list_locations`, `get_unreplied_reviews`, `generate_reply` (AI via MCP sampling), `post_reply`, `delete_review_reply`, `get_review_day_stats`
 - **Local Posts** (4 tools) — `get_local_posts`, `create_local_post`, `update_local_post`, `delete_local_post` (STANDARD / EVENT / OFFER / ALERT)
 - **Q&A** (4 tools) — `get_questions`, `upsert_answer`, `delete_answer`, `delete_question` *(beyond InsightfulPipe parity)*

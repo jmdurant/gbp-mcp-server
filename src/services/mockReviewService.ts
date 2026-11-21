@@ -3,6 +3,7 @@
  * Simulates Google My Business API responses without requiring actual API access
  */
 
+import { mockPracticeAccountLocation, mockPracticeName } from './mockPractice.js';
 import { logger } from '../utils/logger.js';
 import type { 
     BusinessLocation,
@@ -107,7 +108,19 @@ export class MockReviewService implements IReviewService {
 
     private isAuthenticated = false;
 
+    private readonly practiceName = mockPracticeName();
+
     constructor() {
+        if (this.practiceName) {
+            this.mockLocations = [{ name: mockPracticeAccountLocation, locationName: this.practiceName }];
+            const time = new Date().toISOString().slice(0, 10) + 'T00:00:00Z';
+            this.mockReviews = [
+                { reviewId: 'synthetic-checkin', reviewer: { displayName: 'Synthetic reviewer A' },
+                  starRating: 'FIVE', comment: 'The check-in instructions were clear.', createTime: time, updateTime: time },
+                { reviewId: 'synthetic-callback', reviewer: { displayName: 'Synthetic reviewer B' },
+                  starRating: 'THREE', comment: 'I had to call twice to reach the front desk.', createTime: time, updateTime: time }
+            ];
+        }
         logger.info('Initializing Mock Review Service for testing');
         // Instant authentication for testing
         this.isAuthenticated = true;
@@ -378,6 +391,9 @@ export class MockReviewService implements IReviewService {
             // Simulate API delay
             await new Promise(resolve => setTimeout(resolve, 250));
 
+            if (this.practiceName) {
+                return { success: true, data: { ...location, businessType: 'medical_clinic', language: 'en' } };
+            }
             const businessProfile: BusinessProfile = {
                 ...location,
                 businessType: 'restaurant',

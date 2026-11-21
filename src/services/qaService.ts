@@ -17,6 +17,7 @@
 
 import { GoogleMyBusinessApiClient } from './apiClient.js';
 import { GOOGLE_API } from '../utils/constants.js';
+import { assertMockPracticeLocation, mockPracticeLocation, mockPracticeName } from './mockPractice.js';
 import { logger } from '../utils/logger.js';
 
 export interface Question {
@@ -43,7 +44,7 @@ export class QAService {
     constructor(private apiClient: GoogleMyBusinessApiClient, private mockMode = false) {}
 
     async listQuestions(locationName: string, pageSize = 50, pageToken?: string, answersPerQuestion = 10) {
-        if (this.mockMode) return { questions: this.mockQuestions(), totalSize: 1, nextPageToken: undefined };
+        if (this.mockMode) return { questions: this.mockQuestions(locationName), totalSize: 1, nextPageToken: undefined };
         return this.apiClient.get<{ questions: Question[]; totalSize: number; nextPageToken?: string }>(
             `${locationName}/questions`,
             { pageSize, pageToken, answersPerQuestion },
@@ -80,7 +81,16 @@ export class QAService {
         return { ok: true };
     }
 
-    private mockQuestions(): Question[] {
+    private mockQuestions(locationName: string): Question[] {
+        if (mockPracticeName()) {
+            assertMockPracticeLocation(locationName);
+            return [{
+                name: mockPracticeLocation + '/questions/synthetic-registration',
+                text: 'How do I contact the front desk about registration?',
+                author: { displayName: 'Synthetic visitor', type: 'REGULAR_USER' },
+                totalAnswerCount: 0
+            }];
+        }
         return [
             {
                 name: 'locations/456/questions/mock-1',

@@ -19,6 +19,7 @@
 
 import { GoogleMyBusinessApiClient } from './apiClient.js';
 import { GOOGLE_API } from '../utils/constants.js';
+import { assertMockPracticeLocation, mockPracticeName } from './mockPractice.js';
 import { logger } from '../utils/logger.js';
 
 export type DailyMetric =
@@ -75,6 +76,10 @@ export class InsightsService {
 
     async searchKeywords(locationName: string, monthlyRange: { startMonth: { year: number; month: number }; endMonth: { year: number; month: number } }) {
         if (this.mockMode) {
+            if (mockPracticeName()) {
+                assertMockPracticeLocation(locationName);
+                return { searchKeywordsCounts: [{ searchKeyword: 'clinic registration', insightsValue: { value: '12' } }] };
+            }
             return {
                 searchKeywordsCounts: [
                     { searchKeyword: 'premature ejaculation doctor charlotte', insightsValue: { value: '40' } },

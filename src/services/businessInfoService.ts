@@ -19,6 +19,7 @@
 
 import { GoogleMyBusinessApiClient } from './apiClient.js';
 import { GOOGLE_API } from '../utils/constants.js';
+import { assertMockPracticeLocation, mockPracticeLocation, mockPracticeName } from './mockPractice.js';
 import { logger } from '../utils/logger.js';
 
 export class BusinessInfoService {
@@ -116,6 +117,16 @@ export class BusinessInfoService {
 const _MOCK_LOCATION_STATE: Record<string, Record<string, any>> = {};
 
 function getMockLocationState(locationName: string): Record<string, any> {
+    const practice = mockPracticeName();
+    if (practice) {
+        assertMockPracticeLocation(locationName);
+        const key = 'practice:' + practice;
+        return _MOCK_LOCATION_STATE[key] ??= {
+            name: mockPracticeLocation, title: practice, languageCode: 'en',
+            categories: { primaryCategory: { name: 'categories/gcid:medical_clinic' } },
+            attributes: [], serviceItems: []
+        };
+    }
     if (!_MOCK_LOCATION_STATE[locationName]) {
         _MOCK_LOCATION_STATE[locationName] = seedMockLocation(locationName);
     }
